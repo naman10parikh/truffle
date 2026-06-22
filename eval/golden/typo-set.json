@@ -1,0 +1,9 @@
+{
+  "_comment": "The TYPO CLASS golden set (O20/S8 — the silent-failure class a 'safe' version bump regressed: Typesense v28 #2313). Each case is a typo'd query that MUST still return the correct doc via the engine's typo tolerance. Covers all three forms the override requires: single-char substitution, transposition, multi-word typo. The version-bump suite (truffle eval --suite version-bump) re-runs this after ANY engine bump; a miss is FLAGGED and attributed to the bump (never just raise the typo params).",
+  "cases": [
+    { "typo": "kuburnetes", "form": "single-char-substitution", "expectId": "d01", "note": "u→e style sub of 'kubernetes'" },
+    { "typo": "kuberntes", "form": "transposition/deletion", "expectId": "d01", "note": "dropped/transposed char in 'kubernetes'" },
+    { "typo": "kuburnetes deployment", "form": "multi-word-typo", "expectId": "d01", "note": "two typo'd words ('kubernetes deployment')" },
+    { "typo": "authentcation", "form": "single-char-deletion", "expectId": "d05", "note": "missing 'i' in 'authentication'" }
+  ]
+}
