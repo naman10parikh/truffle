@@ -2,16 +2,27 @@
   "dsip": "0.1",
   "product": "truffle",
   "levels": ["agent"],
+  "noSelfGrading": true,
   "loop": {
     "cadence": "nightly",
-    "steps": ["refresh-brain", "re-verify-tool-matrix", "run-eval-pyramid", "propose", "validate", "ship"]
+    "steps": [
+      "re-run-eval-pyramid",
+      "run-version-bump-suite",
+      "re-verify-tool-matrix",
+      "propose",
+      "validate",
+      "ship"
+    ]
   },
   "selection": "performance",
   "eval": {
-    "rubric": "eval/ (Hamel L1 assertions + L2 behavior + L3 trajectory; golden tasks from brain/BATTLE-TESTED-SCENARIOS.md)",
+    "rubric": "eval/ (Hamel L1 assertions + L2 golden tasks from brain/BATTLE-TESTED-SCENARIOS.md + L3 trajectory judge as INPUT not gate)",
     "gate": "acceptance-test-green && no-regression",
     "noSelfGrading": true
   },
-  "snapback": { "granularity": ["skill", "employee"], "vcs": "git" },
-  "externalIntelligence": { "enabled": true, "source": "vertical ecosystem watch (changelogs, issues, X) per brain/TOOL-MATRIX.md" }
+  "snapback": { "granularity": ["component", "repo"], "vcs": "git" },
+  "externalIntelligence": {
+    "enabled": true,
+    "source": "search ecosystem watch — Meilisearch / Typesense / pgvector / OpenSearch changelogs + tagged issues per brain/TOOL-MATRIX.md (gh api, NOT WebFetch)"
+  }
 }

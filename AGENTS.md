@@ -1,86 +1,59 @@
-# AGENTS.md — Wiki Schema & Conventions
+# AGENTS.md — truffle (Search / Retrieval / Relevance Employee)
 
-> This file tells the LLM how your wiki is structured.
-> You and the LLM co-evolve this over time.
+> How a coding agent drives truffle. truffle is the Energy fleet's search domain-expert employee, consumed by
+> coding agents (Claude Code, the energy hub, sibling employees) via **CLI and MCP**. Powered by Energy.
 
-## Domain: personal
+## What truffle does
 
-## Created: 2026-04-07
+truffle takes a query and returns the **right ordered results** — typo-tolerant, faceted, relevance-ranked,
+via hybrid (BM25 + vector) — and proves it with a golden-query eval that catches silent regressions. It picks
+the right engine for the corpus-size/control question (Meilisearch default; Typesense for
+latency/multitenancy; Postgres+pgvector for "one fewer service"; Algolia / ES / OpenSearch only when
+justified), designs the hybrid query + fusion, tunes relevance (RRF floor → tiered boost → reranker), gets
+faceting/filtering/typo-tolerance right at scale, isolates tenants at the search layer, and ships the
+version-bump regression loop ("search is never done").
 
-## Directory Structure
+## The boundary (place every task here FIRST)
 
-```
-raw/              # Immutable source documents (never modified by LLM)
-wiki/             # LLM-generated markdown (the knowledge base)
-  index.md        # Content catalog — every page listed with summary
-  log.md          # Chronological record of operations
-  sources/        # One summary page per ingested source
-  entities/       # Pages for people, organizations, tools, etc.
-  concepts/       # Pages for ideas, frameworks, patterns, etc.
-  syntheses/      # Cross-cutting analyses, comparisons, explorations
-AGENTS.md         # This file — wiki schema and conventions
-config.yaml       # Configuration (LLM provider, sources, schedules)
-```
+truffle owns **search / retrieval / relevance ranking ONLY** — the query, the hybrid fusion, the relevance
+tuning, the reranker, the faceting, the typo-tolerance, the multi-tenancy primitive, the iterative-scan
+*setting*, and the eval loop.
 
-## Page Conventions
+- truffle does **NOT** own the **pgvector DB / Postgres box** — that is **acorn** (truffle consumes the
+  connection; acorn provisions and sizes the box).
+- truffle does **NOT** own the **LLM generation** step that reads the top-8 chunks — that's **downstream**;
+  truffle owns *getting the right top-8*.
+- One-line handoff rule: *"truffle = the query, the ranking, and the relevance proof; acorn = the pgvector box
+  the vectors sit in."* `[brain/OPINIONS.md O1; brain/KNOWN-PITFALLS.md P25]`
 
-Every wiki page has YAML frontmatter:
+## The 5-stance spine (quick-ref — full taste in `brain/OPINIONS.md`)
 
-```yaml
----
-title: "Page Title"
-type: source | entity | concept | synthesis | index | log
-created: "YYYY-MM-DD"
-updated: "YYYY-MM-DD"
-tags: [tag1, tag2]
-sources: ["raw/filename.md"] # Which raw sources inform this page
-related: ["[[Other Page]]"] # Explicit cross-references
-summary: "One-line summary" # Used in index.md
----
-```
+1. **Boundary first** — retrieval/relevance → truffle; pgvector DB → acorn; LLM generation → downstream.
+   Don't over-correct and rip out a good in-house BM25 for a tiny offline corpus.
+2. **Hybrid + reranker is the 2026 default** — pure vector lost; RRF is the floor not the finish (tune the
+   tiers); the reranker is the biggest single lever (except when latency/MRR says skip).
+3. **MTEB is a prior not an oracle; eval on YOUR golden set; search is never done.**
+4. **Right-size the engine; answer corpus-size/control first** — Meili default.
+5. **Version discipline + agent hygiene** — never treat a bump as a no-op; MCP first; Meili writes are async
+   (poll tasks); verify filtered-ANN; server-enforced multi-tenancy.
 
-## Wikilinks
+## Tools (CLI + MCP)
 
-Use `[[Page Title]]` to link between pages. The LLM maintains these links.
-Orphan pages (no inbound links) are flagged by `wikimem lint`.
+> Placeholder — filled with the real CLI verbs + the 11 MCP tools once the CLI (Cluster B) and MCP server
+> (Cluster C) land. Finalized in F21 / F2. The CLI command tree and the MCP `truffle_*` tool list are the two
+> reachable surfaces; the cockpit (`scripts/serve.sh`) is the chairman's view only.
 
-## Operations
+- **CLI:** `truffle --help` (command tree: `index`, `search`, `engine select|up`, `hybrid design|fuse`,
+  `facet plan`, `rerank advise`, `embed advise`, `tenant key`, `eval`, `doctor`, `brain search`) — TBD-filled.
+- **MCP:** server `truffle` over stdio, 11 tools (`truffle_index`, `truffle_search`, `truffle_engine_select`,
+  …) — TBD-filled.
 
-### Ingest
+## Brain
 
-When a new source is added to raw/:
+truffle's expertise lives in `brain/` (6 Wave-R artifacts + MOC), BM25-searchable via `truffle brain search`.
+This is the in-house-BM25 case kept on purpose (a few hundred offline notes — the litmus test says keep BM25,
+don't stand up Meili for the brain itself).
 
-1. Read the source completely
-2. Create/update a source summary page in wiki/sources/
-3. Identify entities mentioned → create/update entity pages
-4. Identify concepts discussed → create/update concept pages
-5. Update index.md with new/modified pages
-6. Append to log.md
+## Commit convention
 
-### Query
-
-When answering a question:
-
-1. Read index.md to find relevant pages
-2. Read the relevant pages
-3. Synthesize an answer with [[wikilink]] citations
-4. Optionally file the answer as a synthesis page
-
-### Lint
-
-Periodically check for:
-
-- Contradictions between pages
-- Stale claims superseded by newer sources
-- Orphan pages with no inbound links
-- Missing cross-references
-- Important concepts mentioned but lacking their own page
-- Data gaps that could be filled
-
-## Quality Standards
-
-- Every claim should cite its source via wikilink
-- Summaries should be concise (1-3 sentences in frontmatter)
-- Pages should be interconnected (no isolated islands)
-- Prefer updating existing pages over creating new ones
-- Flag contradictions explicitly rather than silently overwriting
+`feat(skill):` · `feat(employee):` · `feat(company):` — so git snap-back works at all 3 granularities.
