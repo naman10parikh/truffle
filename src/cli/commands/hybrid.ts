@@ -62,8 +62,28 @@ export function registerHybridCommand(program: Command): void {
         process.exitCode = 1;
         return;
       }
+      // No rank lists → nothing to fuse. Guide the user instead of silently printing {"fused":[]}.
+      if (lists.length === 0) {
+        process.stderr.write(
+          'truffle hybrid fuse: pass --lists with the ranked result lists to fuse, e.g.\n' +
+            "  truffle hybrid fuse --method rrf --lists '[[\"a\",\"b\",\"c\"],[\"b\",\"a\",\"d\"]]'\n",
+        );
+        process.exitCode = 1;
+        return;
+      }
+      let tiers: unknown = [];
+      if (opts.method === "tiered") {
+        try {
+          tiers = JSON.parse(opts.tiers);
+          if (!Array.isArray(tiers)) throw new Error("not an array");
+        } catch {
+          process.stderr.write('--tiers must be a JSON array, e.g. \'[{"ids":["a"],"boost":100}]\'\n');
+          process.exitCode = 1;
+          return;
+        }
+      }
       const fused =
-        opts.method === "tiered" ? tieredFuse(lists, JSON.parse(opts.tiers)) : rrf(lists);
+        opts.method === "tiered" ? tieredFuse(lists, tiers as Parameters<typeof tieredFuse>[1]) : rrf(lists);
       process.stdout.write(JSON.stringify({ method: opts.method, fused }, null, 2) + "\n");
     });
 }

@@ -63,14 +63,24 @@ export function registerEngineCommand(program: Command): void {
       // here; until E4 lands the boot logic this is an HONEST not-yet-wired exit, never a fake success. The path is
       // passed as a variable so tsc treats it as a runtime-resolved dynamic import (E4 adds the module later).
       const sandboxPath = "../../sandbox/engine-up.js";
+      let mod: { engineUp: (e: string) => Promise<void> } | undefined;
       try {
-        const mod = (await import(sandboxPath)) as { engineUp: (e: string) => Promise<void> };
-        await mod.engineUp(opts.engine);
+        mod = (await import(sandboxPath)) as { engineUp: (e: string) => Promise<void> };
       } catch {
+        // The sandbox module itself is missing (would only happen pre-E4 / a broken build) — the honest not-wired note.
         process.stderr.write(
           `truffle engine up --engine ${opts.engine}: the ephemeral-engine lifecycle (src/sandbox/engine-up.ts) ` +
             `is the E4 sandbox component and is not wired yet. Use \`docker run -p 7700:7700 getmeili/meilisearch:v1.28\` meanwhile.\n`,
         );
+        process.exitCode = 2;
+        return;
+      }
+      try {
+        await mod.engineUp(opts.engine);
+      } catch (err) {
+        // engineUp threw a real, specific reason (e.g. an unwired engine, or Docker unavailable) — surface IT, and
+        // FAIL (non-zero) so a script/CI never treats an unwired/failed engine as up.
+        process.stderr.write(`truffle engine up --engine ${opts.engine}: ${err instanceof Error ? err.message : String(err)}\n`);
         process.exitCode = 2;
       }
     });

@@ -48,13 +48,13 @@ async function waitHealthy(client: MeiliClient, timeoutMs = 60_000): Promise<num
 export async function engineUp(engine: string): Promise<void> {
   if (engine !== "meili") {
     // Typesense/Postgres are documented alt paths driven via REST/SQL; only Meili is the wired default this wave
-    // (PLAN §7 / HARNESS-OVERRIDES §11). Be honest rather than pretend-boot an engine truffle doesn't yet wire.
-    process.stdout.write(
-      `truffle engine up --engine ${engine}: only the Meili default is wired this wave. For the ${engine} path run a ` +
+    // (PLAN §7 / HARNESS-OVERRIDES §11). Be honest rather than pretend-boot an engine truffle doesn't yet wire — and
+    // FAIL (throw → non-zero exit), don't return success: a script/CI asking for an unwired engine must not see exit 0.
+    throw new Error(
+      `only the Meili default is wired this wave. For the ${engine} path run a ` +
         `container directly (e.g. \`docker run -p 8108:8108 typesense/typesense:28.0\` / \`docker run -p 5432:5432 supabase/postgres\`) ` +
-        `and point truffle at it via env — see HARNESS-OVERRIDES §11.\n`,
+        `and point truffle at it via env — see HARNESS-OVERRIDES §11.`,
     );
-    return;
   }
 
   const cfg = meiliConfigFromEnv();
