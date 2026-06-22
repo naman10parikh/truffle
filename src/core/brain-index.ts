@@ -86,7 +86,7 @@ function bestExcerpt(doc: Doc, queryTerms: string[]): { line: number; excerpt: s
   let bestLine = 0;
   let bestScore = 0;
   for (let i = 0; i < doc.lines.length; i++) {
-    const lineTokens = new Set(tokenize(doc.lines[i]));
+    const lineTokens = new Set(tokenize(doc.lines[i] ?? ""));
     let s = 0;
     for (const q of queryTerms) if (lineTokens.has(q)) s += 1;
     if (s > bestScore) {
