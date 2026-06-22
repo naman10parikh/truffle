@@ -16,6 +16,7 @@ import { registerHybridCommand } from "./commands/hybrid.js";
 import { registerAdviseCommands } from "./commands/advise.js";
 import { registerRuntimeCommands } from "./commands/runtime.js";
 import { registerBrainCommand } from "./commands/brain.js";
+import { registerRouteCommand } from "./commands/route.js";
 
 /** Read the package version so `truffle --version` matches package.json (dist/cli → repo root is two up). */
 function readVersion(): string {
@@ -41,5 +42,6 @@ registerEngineCommand(program); //   engine select (deterministic) · engine up 
 registerHybridCommand(program); //   hybrid design · hybrid fuse (deterministic, B3 fusion)
 registerAdviseCommands(program); //  facet plan · rerank advise · embed advise · tenant key (deterministic)
 registerBrainCommand(program); //    brain search (A6b BM25 over brain/*.md)
+registerRouteCommand(program); //     route run (D1 internal dispatch loop: index → search → eval, ordered)
 
 program.parseAsync(process.argv);

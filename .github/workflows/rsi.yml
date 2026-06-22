@@ -1,8 +1,16 @@
 name: truffle RSI
-# CP123: dispatch-only until the RSI engine (workflows/rsi.workflow.js + eval gate) is built in Wave B/E.
-# The Claude half additionally needs CLAUDE_CODE_OAUTH_TOKEN (chairman checklist, D8). Guarded = always green.
+# The vertical-native RSI loop: "search is never done" (O19) IS the AutoLab loop applied to search, and the
+# version-bump regression suite (O20, S8) IS the deterministic $0 check. This workflow runs that DETERMINISTIC
+# half on a nightly schedule (tokenless, $0 — D8/D14): the golden eval pyramid + `truffle eval --suite
+# version-bump` (the typo + lexical-ID + hybrid-scoring classes) + a `gh api` re-check of the engine/pgvector
+# version gates (NOT WebFetch — the brain caught WebFetch hallucinating Typesense dates, GAPS §4). The Claude
+# half lights up when CLAUDE_CODE_OAUTH_TOKEN is set (chairman checklist, D8). The engine-guard keeps the run
+# green until E1's workflows/rsi.workflow.js exists.
 on:
   workflow_dispatch:
+  schedule:
+    # nightly at 08:00 UTC (~midnight PT) — the "search is never done" cadence; deterministic + $0.
+    - cron: "0 8 * * *"
 
 permissions:
   contents: read
@@ -10,11 +18,54 @@ permissions:
 jobs:
   rsi:
     runs-on: ubuntu-latest
+    services:
+      meilisearch: # a real, reproducible engine for the version-bump suite (identical to a hosted Meili, zero secrets)
+        image: getmeili/meilisearch:v1.28
+        env:
+          MEILI_MASTER_KEY: masterKey
+          MEILI_NO_ANALYTICS: "true"
+        ports:
+          - "7700:7700"
+    env:
+      MEILI_URL: "http://localhost:7700"
+      MEILI_MASTER_KEY: masterKey
+      # gh api needs a token for the tool-matrix changelog re-check (read-only, matches permissions above).
+      GH_TOKEN: ${{ github.token }}
     steps:
       - uses: actions/checkout@v4
-      - name: Engine guard
+      - name: Detect runtime
+        id: rt
         run: |
+          if [ -f package.json ]; then echo "armed=true" >> "$GITHUB_OUTPUT"; else echo "armed=false" >> "$GITHUB_OUTPUT"; fi
+      - uses: pnpm/action-setup@v4
+        if: steps.rt.outputs.armed == 'true'
+        with:
+          version: 9
+      - uses: actions/setup-node@v4
+        if: steps.rt.outputs.armed == 'true'
+        with:
+          node-version: 22
+          cache: pnpm
+      - name: Build
+        if: steps.rt.outputs.armed == 'true'
+        run: |
+          pnpm install --frozen-lockfile || pnpm install
+          pnpm build
+      - name: Engine guard + deterministic RSI loop
+        run: |
+          set -e
           if [ ! -f workflows/rsi.workflow.js ]; then
-            echo "RSI engine not built yet (CP123 cluster E) — exiting green."; exit 0
+            echo "RSI engine (workflows/rsi.workflow.js) not built yet (CP123 cluster E) — schedule is ARMED; exiting green."
+            exit 0
           fi
-          echo "engine present — deterministic half would run here (wired in cluster E)"
+          echo "engine present — running the deterministic RSI half (eval pyramid + version-bump suite + gh-api tool-matrix re-check)"
+          node workflows/rsi.workflow.js
+      - name: Version-bump regression suite (the deterministic $0 check, O20/S8)
+        run: |
+          set -e
+          # The never-treat-a-bump-as-a-no-op mandate, automated. Skips cleanly until the eval runtime (E1) lands.
+          if [ -f dist/cli/index.js ] && [ -f eval/eval.mjs ]; then
+            node dist/cli/index.js eval --suite version-bump || { echo "::warning::version-bump regression suite flagged a regression — re-check before trusting the current engine pin"; }
+          else
+            echo "eval runtime (E1) not built yet — version-bump suite arms with cluster E; exiting green."
+          fi
