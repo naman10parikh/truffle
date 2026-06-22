@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "_comment": "truffle harness hooks (CP123). The LOAD-BEARING addition is the truffle-authored PostToolUse 'version-bump-guard' matcher — it fires when an edit touches an engine version pin (getmeili/meilisearch:vX, typesense/typesense:X, pgvector vX) and requires `truffle eval --suite version-bump` before shipping (brain O20/P14/S8). The two PreToolUse entries keep the inherited generic safety hooks active (block-dangerous-commands + protect-secrets) — they are NOT the truffle-specific hook and do not count toward the Hooks ✅; they stay per Karpathy surgical (don't disable existing safety when adding ours).",
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          { "type": "command", "command": "node .claude/hooks/block-dangerous-commands.js" }
+        ]
+      },
+      {
+        "matcher": "Edit|Write|MultiEdit",
+        "hooks": [
+          { "type": "command", "command": "node .claude/hooks/protect-secrets.js" }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write|MultiEdit",
+        "hooks": [
+          { "type": "command", "command": "node hooks/version-bump-guard.js" }
+        ]
+      }
+    ]
+  }
+}
