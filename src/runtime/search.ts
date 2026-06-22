@@ -55,14 +55,25 @@ async function searchCore(query: string, opts: SearchOptions): Promise<SearchRes
   // integer (Meili rejects a string limit). Falls back to 10 on a non-numeric value.
   const top = Number(opts.top);
   const limit = Number.isFinite(top) && top > 0 ? Math.floor(top) : 10;
-  const resp = await client.search(FIXTURE_INDEX, {
-    q: query,
-    vector: fusionMode === "hybrid" ? vector : undefined,
-    semanticRatio: 0.5,
-    facets: opts.facet,
-    filter: opts.filter,
-    limit,
-  });
+  let resp;
+  try {
+    resp = await client.search(FIXTURE_INDEX, {
+      q: query,
+      vector: fusionMode === "hybrid" ? vector : undefined,
+      semanticRatio: 0.5,
+      facets: opts.facet,
+      filter: opts.filter,
+      limit,
+    });
+  } catch (err) {
+    // The engine is reachable (health passed) but the call failed. A 403/invalid_api_key is almost always a wrong
+    // MEILI_MASTER_KEY — say so rather than surface a bare HTTP 403. Other errors propagate with their message.
+    const msg = err instanceof Error ? err.message : String(err);
+    if (/403|invalid_api_key|auth/i.test(msg)) {
+      throw new Error(`Meili rejected the request as unauthorized — check MEILI_MASTER_KEY (it must match the engine's master key). Engine said: ${msg}`);
+    }
+    throw err;
+  }
 
   const hits = resp.hits.map((h: MeiliHit) => {
     const hit: { id: string; score: number; title?: string; category?: string } = { id: h.id, score: h.score };

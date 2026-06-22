@@ -8,21 +8,43 @@
 
 import type { Command } from "commander";
 
-/** Try to load a runtime module; on absence, write an honest not-yet-wired message and set a non-zero exit code. */
+/**
+ * Load a runtime module and run it. Distinguishes TWO failure modes so the user gets an honest message (not a
+ * misleading "not wired" label slapped on a real runtime error):
+ *   1. The module genuinely can't be loaded (Cannot find module / ERR_MODULE_NOT_FOUND) — the honest not-yet-wired
+ *      case (the component owning this verb's runtime isn't built). Exit 2 with that framing.
+ *   2. The module loaded and RAN but threw (e.g. a 403 from a wrong MEILI_MASTER_KEY, a connection refused, a bad
+ *      path). The verb IS wired — surface the actual error as-is. Calling this "not wired yet" lies to the user.
+ * Individual runtime modules (index/search/eval/doctor) already set their own non-zero exit + friendly message on
+ * the failures they understand; this wrapper only catches what propagates past them.
+ */
 async function delegateOrExplain<T>(
   modulePath: string,
   componentOwner: string,
   run: (mod: T) => Promise<void> | void,
 ): Promise<void> {
+  let mod: T;
   try {
-    const mod = (await import(modulePath)) as T;
+    mod = (await import(modulePath)) as T;
+  } catch (err) {
+    // Mode 1: the runtime module itself is missing (only pre-component / a broken build) — the honest not-wired note.
+    const isModuleMissing = err instanceof Error && /Cannot find module|ERR_MODULE_NOT_FOUND/.test(err.message);
+    if (isModuleMissing) {
+      process.stderr.write(
+        `not wired yet — ${componentOwner} owns ${modulePath}. ` +
+          `This verb's CLI shell + args are in place; the engine/eval runtime lands with that component.\n`,
+      );
+    } else {
+      process.stderr.write(`failed to load ${modulePath}: ${err instanceof Error ? err.message : String(err)}\n`);
+    }
+    process.exitCode = 2;
+    return;
+  }
+  // Mode 2: the module loaded — run it. A throw here is a REAL runtime error (auth/connection/path), surfaced as-is.
+  try {
     await run(mod);
   } catch (err) {
-    const reason = err instanceof Error && !/Cannot find module|ERR_MODULE_NOT_FOUND/.test(err.message) ? `: ${err.message}` : "";
-    process.stderr.write(
-      `not wired yet — ${componentOwner} owns ${modulePath}${reason}. ` +
-        `This verb's CLI shell + args are in place; the engine/eval runtime lands with that component.\n`,
-    );
+    process.stderr.write(`${err instanceof Error ? err.message : String(err)}\n`);
     process.exitCode = 2;
   }
 }

@@ -10,6 +10,7 @@
 // `indexCorpus` (the MCP shape: src/mcp/tools/runtime-tools.ts calls `m.indexCorpus(path[], {engine, hybrid})`).
 // Both converge on one implementation so the CLI and MCP index identically.
 
+import { existsSync, statSync } from "node:fs";
 import { MeiliClient, meiliConfigFromEnv } from "./meili-client.js";
 import { loadCorpus, FIXTURE_DIMS } from "./corpus.js";
 
@@ -42,6 +43,14 @@ async function indexCore(corpusPath: string, opts: IndexOptions): Promise<IndexR
       `Meili is not reachable. Boot it first: \`truffle engine up --engine meili\` (or in CI the services: block). ` +
         `MEILI_URL=${process.env.MEILI_URL ?? "http://localhost:7700"}.`,
     );
+  }
+
+  // Validate the corpus path up front so a typo'd / missing path gives a clear message, not a raw Node ENOENT/scandir.
+  if (!existsSync(corpusPath)) {
+    throw new Error(`corpus path not found: ${corpusPath} (pass a directory of *.md docs, e.g. ./fixtures/corpus)`);
+  }
+  if (!statSync(corpusPath).isDirectory()) {
+    throw new Error(`corpus path is not a directory: ${corpusPath} (truffle index expects a directory of *.md docs)`);
   }
 
   const docs = loadCorpus(corpusPath);
