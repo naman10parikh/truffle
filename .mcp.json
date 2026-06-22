@@ -1,5 +1,6 @@
 {
   "mcpServers": {
+    "truffle":         { "command": "node", "args": ["./dist/mcp/server.js"], "env": { "MEILI_URL": "${MEILI_URL}", "MEILI_MASTER_KEY": "${MEILI_MASTER_KEY}" } },
     "github":          { "command": "npx", "args": ["-y","@modelcontextprotocol/server-github"], "env": { "GITHUB_PERSONAL_ACCESS_TOKEN": "${GITHUB_PERSONAL_ACCESS_TOKEN}" } },
     "context7":        { "command": "npx", "args": ["-y","@upstash/context7-mcp"] },
     "memory":          { "command": "npx", "args": ["-y","@modelcontextprotocol/server-memory"], "env": { "MEMORY_FILE_PATH": "./memory/MEMORY.md" } },
