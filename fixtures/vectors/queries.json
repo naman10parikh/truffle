@@ -1,0 +1,10 @@
+{
+  "_comment": "Committed fixture QUERY embeddings (same 8 concept axes as embeddings.json). Hand-authored so the hybrid (BM25 + fixture-vector -> RRF) ordering is deterministic + explainable in CI with NO embed API. Keyed by the EXACT query string used in the acceptance test + golden tasks. The flagship case is the paraphrase query (G-hybrid): its vector points at axis [5] memory-pressure/eviction so d07 (the eviction doc, which uses SYNONYMS) wins the vector leg, while BM25-alone ranks d08 first (it has the literal query words) — proving hybrid != BM25-alone.",
+  "queries": {
+    "kuburnetes RTX-4090 0x80070005": [0.5, 0.55, 0.55, 0.0, 0.1, 0.0, 0.0, 0.2],
+    "remove containers from a node when it runs low on memory": [0.4, 0.0, 0.0, 0.0, 0.2, 0.88, 0.05, 0.18],
+    "kubernetes": [0.95, 0.0, 0.0, 0.0, 0.2, 0.05, 0.0, 0.2],
+    "RTX-4090": [0.0, 0.97, 0.0, 0.0, 0.0, 0.0, 0.0, 0.24],
+    "0x80070005": [0.0, 0.0, 0.98, 0.0, 0.0, 0.0, 0.0, 0.2]
+  }
+}

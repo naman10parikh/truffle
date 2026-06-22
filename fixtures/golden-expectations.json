@@ -1,0 +1,22 @@
+{
+  "_comment": "Ground truth for the eval scorer (Recall@10 / MRR) + the hybrid-ordering assertion (PLAN §5 step 5). The `relevant` ids are human/behaviour labels (NOT an LLM's opinion — DISPUTE D / dsip noSelfGrading). `hybridOrderingProof` is the paraphrase case that proves hybrid != BM25-alone: under BM25-alone d08 ranks first (literal query words), under hybrid d07 ranks first (semantic match via fixture vectors).",
+  "judgements": [
+    { "query": "kuburnetes RTX-4090 0x80070005", "relevant": ["d01", "d02", "d04"] },
+    { "query": "kubernetes", "relevant": ["d01"] },
+    { "query": "RTX-4090", "relevant": ["d02"] },
+    { "query": "0x80070005", "relevant": ["d04"] },
+    { "query": "remove containers from a node when it runs low on memory", "relevant": ["d07"] }
+  ],
+  "hybridOrderingProof": {
+    "query": "remove containers from a node when it runs low on memory",
+    "bm25AloneTopId": "d08",
+    "hybridTopId": "d07",
+    "note": "BM25-alone favours d08 (has the literal words remove/containers/memory); hybrid favours d07 (eviction under memory pressure — the semantic match). The flip is the proof that fusion_mode=='hybrid' changes the ordering."
+  },
+  "lexicalIdRanking": {
+    "query": "RTX-4090",
+    "above": "d02",
+    "below": "d03",
+    "note": "the RTX-4090 doc (d02) must rank above the RTX-4070 doc (d03) — dense embeddings cluster near-identical SKUs, BM25 keeps them apart (O4/S1)."
+  }
+}
