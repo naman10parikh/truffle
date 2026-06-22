@@ -1,0 +1,32 @@
+# docker-compose.ci.yml — the local equivalent of the acceptance/rsi CI `services:` block (E4 sandbox, §11).
+#
+# truffle's sandbox IS an ephemeral search engine (HARNESS-OVERRIDES §11 override). This compose file boots the
+# same pinned engines the CI `services:` block uses, so a developer can reproduce the acceptance test locally with
+# one command:  `docker compose -f docker-compose.ci.yml up -d`  then  `truffle index ./fixtures/corpus --hybrid`.
+# `truffle engine up --engine meili` is the zero-config convenience for the Meili default; this file is the
+# multi-engine form (Meili default + the Postgres+pgvector path for G4 + Typesense for the alt path).
+#
+# Zero secrets — the master keys/passwords are the same throwaway dev values as CI (the merge gate needs no secret).
+services:
+  meilisearch:
+    image: getmeili/meilisearch:v1.28 # the DEFAULT engine; identical to a hosted Meili; truffle doctor feature-detects the version
+    environment:
+      MEILI_MASTER_KEY: masterKey
+      MEILI_NO_ANALYTICS: "true"
+    ports:
+      - "7700:7700"
+
+  postgres: # the acorn-owned pgvector path (G4 filtered-ANN retrieval semantics — truffle owns the iterative-scan SETTING, acorn owns the DB)
+    image: supabase/postgres:15.8.1.135
+    environment:
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+
+  typesense: # the alt engine (latency/multitenancy) — driven via REST (no official MCP/CLI, P3); documented-not-default
+    image: typesense/typesense:28.0
+    command: "--data-dir /data --api-key=xyz --enable-cors"
+    ports:
+      - "8108:8108"
+    volumes:
+      - /tmp/truffle-typesense-data:/data
