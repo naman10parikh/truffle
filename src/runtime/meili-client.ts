@@ -142,6 +142,14 @@ export class MeiliClient {
       // userProvided embedder: truffle supplies the vector (the committed fixture vector); Meili does NOT call any
       // embedding API (D15 — secret-less, deterministic CI). dimensions is mandatory for userProvided.
       settings.embedders = { hybrid: { source: "userProvided", dimensions: FIXTURE_DIMS } };
+    } else {
+      // BM25-only: RESET any previously-configured embedder. In Meili, PATCH with `embedders: null` RESETS the setting
+      // (an empty object `{}` is a no-op merge and does NOT clear an existing embedder). Without this reset, an index
+      // that ran --hybrid earlier keeps its userProvided embedder, and a later BM25-only index into the same index
+      // FAILS with "no vectors provided for document …" because Meili then demands _vectors on every new doc. The
+      // index name is fixed (FIXTURE_INDEX), so re-running `truffle index` without --hybrid after a hybrid run hits
+      // exactly that. Clearing embedders makes the BM25-only path self-consistent regardless of prior runs.
+      settings.embedders = null;
     }
     const patchRes = await fetch(`${this.cfg.url}/indexes/${index}/settings`, {
       method: "PATCH",
@@ -150,6 +158,20 @@ export class MeiliClient {
     });
     if (!patchRes.ok) throw new Error(`PATCH /settings → HTTP ${patchRes.status}: ${await patchRes.text()}`);
     await this.waitForTask(this.taskUidOf(await patchRes.json()));
+  }
+
+  /**
+   * Delete ALL documents in an index and WAIT for the task (P1 async-write contract). truffle's `index <path>` uses
+   * REPLACE semantics — the index reflects exactly the corpus you just indexed — so each index call clears the prior
+   * corpus first. Without this, indexing corpus B into the fixed FIXTURE_INDEX leaves corpus A's docs mixed in (and a
+   * leftover BM25 doc with no vector breaks a subsequent --hybrid run when the embedder re-embeds existing docs). The
+   * index is left in place if it doesn't exist yet (404 → benign no-op; configureIndex creates it next).
+   */
+  async deleteAllDocuments(index: string): Promise<void> {
+    const res = await fetch(`${this.cfg.url}/indexes/${index}/documents`, { method: "DELETE", headers: this.headers() });
+    if (res.status === 404) return; // index not created yet — nothing to clear
+    if (!res.ok) throw new Error(`DELETE /documents → HTTP ${res.status}: ${await res.text()}`);
+    await this.waitForTask(this.taskUidOf(await res.json()));
   }
 
   /**

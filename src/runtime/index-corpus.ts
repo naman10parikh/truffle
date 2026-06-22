@@ -47,21 +47,36 @@ async function indexCore(corpusPath: string, opts: IndexOptions): Promise<IndexR
   const docs = loadCorpus(corpusPath);
   if (docs.length === 0) throw new Error(`no *.md docs found under ${corpusPath}`);
 
-  // Configure attributes (P2) + the hybrid embedder (only when --hybrid). Polls each settings task to succeeded.
-  await client.configureIndex(FIXTURE_INDEX, opts.hybrid);
-
-  // Build the Meili documents. When --hybrid, attach the COMMITTED fixture vector as a userProvided embedding
-  // ({embeddings, regenerate:false}) so the vector leg needs NO embed API (D15). A doc missing a fixture vector
-  // under --hybrid is a fixture bug — fail loudly rather than silently index a half-hybrid corpus.
+  // Build + VALIDATE the Meili documents BEFORE touching the engine. When --hybrid, attach the COMMITTED fixture
+  // vector as a userProvided embedding ({embeddings, regenerate:false}) so the vector leg needs NO embed API (D15).
+  // A doc missing a fixture vector under --hybrid fails loudly HERE (no engine mutation yet) rather than silently
+  // indexing a half-hybrid corpus or letting the settings re-embed step fail with a cryptic Meili task error.
   const meiliDocs = docs.map((d) => {
     const base: Record<string, unknown> = { id: d.id, title: d.title, category: d.category, body: d.body };
     if (opts.hybrid) {
-      if (!d.vector) throw new Error(`--hybrid but doc ${d.id} has no committed fixture vector (fixtures/vectors/embeddings.json)`);
+      if (!d.vector)
+        throw new Error(
+          `--hybrid needs a vector for doc "${d.id}", but none was found. This wave runs hybrid on COMMITTED fixture ` +
+            `vectors only (secret-less, deterministic CI per D15) — they live in fixtures/vectors/embeddings.json and ` +
+            `cover the fixture corpus. For YOUR OWN corpus you have two options: (1) drop --hybrid to index BM25-only ` +
+            `(keyword + typo-tolerant, no vectors needed); or (2) wait for the live-embedder path (OPENAI_API_KEY, ` +
+            `Wave-V/additive — not in this CI gate). See HARNESS-OVERRIDES §Acceptance + PLAN §5 Q0.`,
+        );
       if (d.vector.length !== FIXTURE_DIMS) throw new Error(`doc ${d.id} fixture vector is ${d.vector.length}-dim, expected ${FIXTURE_DIMS}`);
       base._vectors = { hybrid: { embeddings: d.vector, regenerate: false } };
     }
     return base;
   });
+
+  // REPLACE semantics: clear the prior corpus first so the index reflects exactly THIS corpus (truffle's index name
+  // is fixed — without this, indexing corpus B leaves corpus A's docs mixed in, and a leftover BM25 doc with no
+  // vector breaks a subsequent --hybrid run when configureIndex re-embeds existing docs). Delete BEFORE configure so
+  // the embedder change never re-embeds stale docs. No-op when the index doesn't exist yet (404).
+  await client.deleteAllDocuments(FIXTURE_INDEX);
+
+  // Configure attributes (P2) + the hybrid embedder (only when --hybrid; reset when BM25-only). Polls each settings
+  // task to succeeded.
+  await client.configureIndex(FIXTURE_INDEX, opts.hybrid);
 
   const task = await client.addDocumentsAndWait(FIXTURE_INDEX, meiliDocs);
   return {
