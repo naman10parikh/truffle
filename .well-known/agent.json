@@ -1,0 +1,92 @@
+{
+  "protocolVersion": "1.0",
+  "name": "truffle",
+  "description": "The Energy fleet's search employee — the search / retrieval / relevance domain expert. truffle takes a query and returns the right ordered results: typo-tolerant, faceted, relevance-ranked, via hybrid (BM25 + vector + RRF), and proves it with a golden-query eval that catches silent regressions. It picks the right engine (Meilisearch default; Typesense for latency/multitenancy; Postgres+pgvector for one-fewer-service; Algolia/ES/OpenSearch only when justified), designs the hybrid query + fusion, tunes relevance (RRF floor → tiered boost → reranker), gets faceting/filtering/typo-tolerance right at scale, isolates tenants at the search layer, and ships the version-bump regression loop. Boundary: search / retrieval / relevance ranking ONLY — NOT the pgvector DB (that is acorn) and NOT the LLM generation step (downstream). Powered by Energy.",
+  "url": "http://localhost:8947/a2a",
+  "preferredTransport": "JSONRPC",
+  "version": "0.1.0",
+  "documentationUrl": "https://github.com/naman10parikh/truffle/blob/main/AGENTS.md",
+  "provider": {
+    "organization": "Energy",
+    "url": "https://github.com/naman10parikh/truffle"
+  },
+  "capabilities": {
+    "streaming": false,
+    "pushNotifications": false,
+    "stateTransitionHistory": false
+  },
+  "defaultInputModes": ["text/plain", "application/json"],
+  "defaultOutputModes": ["text/plain", "application/json"],
+  "skills": [
+    {
+      "id": "engine-selection",
+      "name": "Select a search engine (or use Postgres)",
+      "description": "Answer the corpus-size/control routing question FIRST, then name an engine + the honest cost + a right-size verdict. Deterministic (pure code). Meili default; Typesense for latency/multitenancy; Postgres+pgvector for one-fewer-service (acorn's DB, retrieval layer only); Algolia only when relevance is revenue-critical + budget > eng; ES/OpenSearch only at scale. Flags ES-by-default / Algolia-for-an-agent / pure-vector anti-patterns. The truffle_engine_select tool.",
+      "tags": ["search", "engine-selection", "meilisearch", "typesense", "pgvector", "right-sizing"],
+      "examples": [
+        "Which search backend should we use for a 500k-doc multi-tenant product? Name it with the honest cost.",
+        "Should we use Elasticsearch for our search box? Right-size it, don't reach for ES by default."
+      ]
+    },
+    {
+      "id": "hybrid-search",
+      "name": "Build hybrid (BM25 + vector) search",
+      "description": "Index a corpus and run hybrid (BM25 + vector + RRF) search returning typo-tolerant, faceted, relevance-ranked hits + a relevance note. Pure vector lost on real data (WANDS); hybrid covers complementary failure modes; test the lexical-ID class (codes/SKUs/API-names) where pure-vector silently fails. Returned document content is treated as untrusted. The truffle_index + truffle_search tools.",
+      "tags": ["hybrid-search", "bm25", "vector-search", "rrf", "typo-tolerance", "lexical-id"],
+      "examples": [
+        "Add hybrid search over these docs and prove it finds the SKU RTX-4090 and the error code 0x80070005 exactly.",
+        "My semantic search fails on codes and IDs — combine keyword and vector so both win."
+      ]
+    },
+    {
+      "id": "relevance-tuning",
+      "name": "Tune relevance (gated on a golden set)",
+      "description": "RRF is the floor not the finish — tune the tiers (all-term 100×, any-term 10×, vector fallback 0.1×) for revenue-critical relevance, gated on a corpus-wide golden set with per-query regression. Never tune for a pet query (a fix for query A that silently breaks B-Z is FLAGGED). Search is never done. The truffle_eval + truffle_hybrid tools.",
+      "tags": ["relevance", "ranking", "rrf", "tiered-boost", "pet-query-trap", "golden-set"],
+      "examples": [
+        "This query ranks badly — tune the ranking without silently breaking the other thousand queries.",
+        "We shipped RRF and called it done — show me the lift we're leaving on the table."
+      ]
+    },
+    {
+      "id": "faceting",
+      "name": "Faceting + filtering at scale",
+      "description": "Treat faceting as a systems problem with cost dials, not GROUP BY + COUNT — one high-cardinality facet collapsed a real cluster 13-20×. Prescribe cardinality reduction, count-cap ('500+'), terminate_after/size:0, sampling for 100k+ matched docs, and multi-select exclusion, framing approximate counts as a deliberate tradeoff. The truffle_facet_plan tool.",
+      "tags": ["faceting", "filtering", "cardinality", "count-cap", "scale", "tradeoffs"],
+      "examples": [
+        "Add a brand facet over 2M values without collapsing throughput.",
+        "My facet counts are killing latency at scale — give me the cost dials."
+      ]
+    },
+    {
+      "id": "reranking",
+      "name": "Add (or skip) a reranker",
+      "description": "The reranker is usually the biggest single quality lever (+5-15 NDCG@10, +20-35% RAG accuracy) — but SKIP it when latency can't absorb +100-500ms (autocomplete) or bi-encoder MRR@5 already > 0.85 (reranking a near-perfect set is pure latency cost). Vendor benchmarks are marketing; decide on YOUR corpus. The truffle_rerank_advise tool.",
+      "tags": ["reranking", "cross-encoder", "cohere", "bge", "latency", "rag"],
+      "examples": [
+        "Should we add a reranker to our RAG pipeline? Our retrieval MRR@5 is 0.72.",
+        "Is a reranker worth +200ms on our autocomplete? (No.)"
+      ]
+    },
+    {
+      "id": "multi-tenancy",
+      "name": "Isolate tenants at the search layer",
+      "description": "Emit a SERVER-ENFORCED scoped key / tenant token that bakes the tenant filter into a signed credential — never a client-side filter (trivially bypassable). Typesense HMAC scoped keys (best OSS), Meili tenant tokens, ES doc-level security, or Postgres RLS (acorn owns the RLS policy; truffle owns the search-tenancy primitive). The truffle_tenant_key tool.",
+      "tags": ["multi-tenancy", "tenant-isolation", "scoped-keys", "hmac", "security"],
+      "examples": [
+        "Make search per-tenant so org A can never see org B's documents — server-enforced, not a client filter.",
+        "Emit a Typesense scoped key that bakes in company_id:42."
+      ]
+    },
+    {
+      "id": "search-eval",
+      "name": "Prove search works (golden set + version-bump suite)",
+      "description": "Ship the golden-query eval + the version-bump regression suite (typo + hybrid-scoring + lexical-ID classes) so relevance can't silently regress — never treat an engine version bump as a no-op (Typesense v28 silently broke typo tolerance). MTEB is a prior not an oracle; eval on YOUR golden set. Recall@10 85-91% / MRR > 0.80 targets, per-query regression. The truffle_eval + truffle_doctor tools.",
+      "tags": ["search-eval", "golden-set", "version-bump", "regression", "recall", "mrr"],
+      "examples": [
+        "Set up a search eval that catches a silent typo-tolerance regression after an engine upgrade.",
+        "Prove our search relevance didn't regress when we bumped Meilisearch."
+      ]
+    }
+  ]
+}

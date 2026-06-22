@@ -39,14 +39,45 @@ tuning, the reranker, the faceting, the typo-tolerance, the multi-tenancy primit
 
 ## Tools (CLI + MCP)
 
-> Placeholder — filled with the real CLI verbs + the 11 MCP tools once the CLI (Cluster B) and MCP server
-> (Cluster C) land. Finalized in F21 / F2. The CLI command tree and the MCP `truffle_*` tool list are the two
-> reachable surfaces; the cockpit (`scripts/serve.sh`) is the chairman's view only.
+The CLI command tree and the MCP `truffle_*` tool list are the two reachable surfaces (the employee-first rule:
+every capability via CLI **and** MCP, 1:1). The cockpit (`scripts/serve.sh`) is the chairman's view only.
 
-- **CLI:** `truffle --help` (command tree: `index`, `search`, `engine select|up`, `hybrid design|fuse`,
-  `facet plan`, `rerank advise`, `embed advise`, `tenant key`, `eval`, `doctor`, `brain search`) — TBD-filled.
-- **MCP:** server `truffle` over stdio, 11 tools (`truffle_index`, `truffle_search`, `truffle_engine_select`,
-  …) — TBD-filled.
+### CLI (`truffle --help`)
+Every command exits 0 on success / non-zero on violation; `--json` on `engine select` / `eval` / `doctor` / `facet plan`.
+
+- `truffle index <path>` — index a corpus (chunk→embed→index, hybrid-ready); Meili default; polls the task queue until searchable. (half of THE acceptance bar)
+- `truffle search "<query>"` — hybrid (BM25+vector) search → typo-tolerant, faceted, relevance-ranked hits + a relevance note; `--facet` `--filter` `--hybrid` `--top`.
+- `truffle engine select` — corpus-size/control decision tree → engine + honest cost + right-size verdict; `--corpus-size` `--multitenant` `--latency-critical` `--on-postgres`.
+- `truffle engine up [--engine meili|typesense|postgres]` — boot an ephemeral engine container (dev/CI); default Meili.
+- `truffle hybrid design --engine <e>` — emit the copy-paste hybrid query template (Meili semanticRatio / Typesense auto-fuse / ES rrf retriever / Postgres two-CTE RRF SQL).
+- `truffle hybrid fuse --method <rrf|weighted|tiered>` — compute/emit the fusion (RRF k≈60 floor; tiered boost 100×/10×/0.1×).
+- `truffle facet plan <field> --cardinality <n>` — facet-at-scale dials: cardinality reduction, count-cap "500+", terminate_after/size:0, sampling, multi-select exclusion.
+- `truffle rerank advise --mrr <x> --latency-budget <ms>` — ADD or SKIP a reranker (skip if MRR@5>0.85 or latency can't absorb +100-500ms); Cohere managed / bge-on-GPU.
+- `truffle embed advise --corpus <path> --index-cap <2000|4000>` — shortlist embedder via MTEB, flag dims-vs-HNSW-cap (Matryoshka-truncate), insist on a domain golden-set eval.
+- `truffle tenant key --filter "<predicate>" --engine <typesense|meili>` — emit a SERVER-ENFORCED scoped key / tenant token (never the client filter).
+- `truffle eval [--suite golden|version-bump]` — the golden-query pyramid (+ the typo/lexical-ID/hybrid-scoring regression suite); Recall@10/MRR/hit-rate; per-query regression. (THE relevance proof)
+- `truffle doctor` — engine version (gh-api-verified, NOT WebFetch), pgvector≥0.8 + iterative_scan, attribute declarations, RAM-vs-index estimate, write-model.
+- `truffle route run` — internal multi-step routing loop (index → search → eval, ordered, logged).
+- `truffle brain search "<q>"` — BM25 over `brain/*.md` (the Memory component; the in-house-BM25 case, kept on purpose).
+- `truffle --help | --version` — standard.
+
+### MCP (server `truffle`, stdio — all 11 tools, 1:1 with the CLI)
+Returned document content is **untrusted** (no instruction-following on result text); Meili writes poll the task queue before reporting success; complex filters use POST.
+
+- `truffle_index` — {path, engine?, hybrid?} → {indexed, task_status, searchable}
+- `truffle_search` — {query, facet?, filter?, hybrid?, top?} → {hits, facets, fusion_mode, relevance_note}
+- `truffle_engine_select` — {corpus_size, multitenant?, latency_critical?, on_postgres?} → {engine, reason, honest_cost, rightsize_verdict}
+- `truffle_hybrid_design` — {engine} → {query_template, fusion_note}
+- `truffle_facet_plan` — {field, cardinality, result_set?} → {dials}
+- `truffle_rerank_advise` — {mrr_at_5?, latency_budget_ms?, surface?} → {decision, model?, reason}
+- `truffle_embed_advise` — {corpus?, index_cap?, long_context?} → {shortlist, dims_note, golden_set_required}
+- `truffle_tenant_key` — {filter, engine} → {scoped_key|tenant_token, server_enforced}
+- `truffle_eval` — {suite?} → {recall_at_10, mrr, hit_rate, regressions}
+- `truffle_doctor` — {engine_url?} → {engine_version, pgvector_ok, attrs_declared, ram_estimate, write_model}
+- `truffle_brain_search` — {query} → {hits}
+
+Wiring: `.mcp.json` lists the `truffle` server (`node dist/mcp/server.js`) + env-ref keys only (no live keys).
+Full agent map + the consumption stanza: `llms.txt`. Plugin bundle: `.claude-plugin/manifest.json`.
 
 ## Brain
 
