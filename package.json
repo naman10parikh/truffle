@@ -32,7 +32,7 @@
     "dev-tools"
   ],
   "scripts": {
-    "build": "tsc",
+    "build": "tsc && chmod +x dist/cli/index.js",
     "dev": "tsc --watch",
     "test": "vitest run",
     "test:watch": "vitest",
