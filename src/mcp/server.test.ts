@@ -1,12 +1,28 @@
 // src/mcp/server.test.ts — the MCP contract test (C1 verify).
 //
-// Asserts: tools/list returns EXACTLY the 11 §4 tools with the right names; the deterministic tools round-trip
-// to real structured results through the SAME cores the CLI uses; and the engine-touching tools return an honest
-// not-wired result (wired:false), never a fabricated success. (The live-Meili round-trip for truffle_search is
-// Cluster E's engine — exercised in E/Wave-V, not here.)
+// Asserts: tools/list returns EXACTLY the 11 §4 tools with the right names; the deterministic tools round-trip to
+// real structured results through the SAME cores the CLI uses; and the engine-touching tools are HONEST.
+//
+// NOTE (post-Cluster-E): the engine-touching tools (index/search/eval/doctor) now delegate to the real
+// src/runtime/* modules — E landed, so they're WIRED (no longer wired:false "not found"). To keep this contract
+// deterministic in the build-test CI job (no Meili service — only the acceptance job has one), we point the engine
+// at an unreachable URL: the runtime makes a REAL attempt, fails honestly, and delegateOrExplain returns
+// {wired:true, error} with NO fabricated hits. The live-Meili round-trip (real hits) is proven by the acceptance
+// suite (eval-suite + acceptance.yml). The post-E invariant asserted here: the tool is WIRED and NEVER fabricates
+// a hits array / eval verdict when the engine is down.
 
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { TOOLS, TOOL_BY_NAME } from "./tools/index.js";
+
+// Force an unreachable engine so the engine-touching contract is deterministic regardless of a running Meili.
+const PRIOR_URL = process.env.MEILI_URL;
+beforeAll(() => {
+  process.env.MEILI_URL = "http://127.0.0.1:9"; // discard port — never a Meili; health() returns false fast.
+});
+afterAll(() => {
+  if (PRIOR_URL === undefined) delete process.env.MEILI_URL;
+  else process.env.MEILI_URL = PRIOR_URL;
+});
 
 const EXPECTED_NAMES = [
   "truffle_index",
@@ -91,25 +107,26 @@ describe("deterministic tools round-trip to real results (one source of truth wi
   });
 });
 
-describe("engine-touching tools are HONEST (no fabricated success until Cluster E)", () => {
-  it("truffle_search returns wired:false + the agent-operator contract, not a fake hits array", async () => {
+describe("engine-touching tools are HONEST (post-E: wired, but NEVER fabricate without a live engine)", () => {
+  it("truffle_search is WIRED (not wired:false) and returns NO fabricated hits when the engine is down", async () => {
     const tool = TOOL_BY_NAME.get("truffle_search")!;
-    const r = (await tool.handler({ query: "kubernetes" })) as {
-      wired?: boolean;
-      hits?: unknown;
-      agent_operator_contract?: Record<string, string>;
-    };
-    expect(r.wired).toBe(false);
-    expect(r.hits).toBeUndefined(); // crucially: NO fabricated hits
-    expect(r.agent_operator_contract?.untrusted_content).toMatch(/instructions|injection|P25/i);
+    const r = (await tool.handler({ query: "kubernetes" })) as { wired?: boolean; hits?: unknown; error?: string };
+    // Post-E: the module loads → NOT the wired:false "not found" path. With the engine forced-unreachable, the
+    // runtime errors honestly → wired:true + an error, and CRUCIALLY no fabricated hits array.
+    expect(r.wired).not.toBe(false);
+    expect(r.hits).toBeUndefined(); // crucially: NO fabricated hits when the engine is down
+    if (r.wired === true) expect(typeof r.error).toBe("string"); // honest error, not a fake success
   });
 
-  it("truffle_index, truffle_eval, truffle_doctor are all honest not-wired until E", async () => {
+  it("truffle_index, truffle_eval, truffle_doctor are WIRED and never fabricate a result with the engine down", async () => {
     for (const name of ["truffle_index", "truffle_eval", "truffle_doctor"]) {
       const tool = TOOL_BY_NAME.get(name)!;
       const args = name === "truffle_index" ? { path: "./fixtures/corpus" } : {};
-      const r = (await tool.handler(args)) as { wired?: boolean };
-      expect(r.wired).toBe(false);
+      const r = (await tool.handler(args)) as { wired?: boolean; indexed?: unknown; recall_at_10?: unknown };
+      expect(r.wired).not.toBe(false); // wired now (E landed) — not the not-found path
+      // No fabricated success fields when the engine is unreachable.
+      expect(r.indexed).toBeUndefined();
+      expect(r.recall_at_10).toBeUndefined();
     }
   });
 });

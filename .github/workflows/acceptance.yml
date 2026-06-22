@@ -1,0 +1,55 @@
+name: acceptance
+# THE merge-gating acceptance job (PLAN §5 / HARNESS-OVERRIDES "Acceptance test"). Runs THE bar against a
+# containerized Meilisearch + COMMITTED fixture vectors — ZERO secrets, deterministic, free (D15 local-first):
+#   truffle index ./fixtures/corpus --engine meili --hybrid   (committed fixture vectors → NO embed API call)
+#   truffle search "kuburnetes RTX-4090 0x80070005" --hybrid --facet category --top 10 --json
+#   node eval/eval.mjs   (red-blocking: G1 + the typo/lexical-ID/hybrid-ordering classes + per-query regression)
+# The engine is IDENTICAL to a hosted Meili; the hybrid/typo/facet semantics are identical; the merge gate needs no
+# secret. The live-embedder run + hosted-Meili runs are ADDITIVE / Wave-V only (secret-gated, CHAIRMAN-CHECKLIST).
+on: [push, pull_request]
+
+permissions:
+  contents: read
+
+jobs:
+  truffle-search-acceptance:
+    runs-on: ubuntu-latest
+    services:
+      meilisearch: # identical engine, free, reproducible, zero secrets (mirrors acorn's containerized-Postgres pattern)
+        image: getmeili/meilisearch:v1.28 # pinned; truffle doctor feature-detects the version at runtime
+        env:
+          MEILI_MASTER_KEY: masterKey
+          MEILI_NO_ANALYTICS: "true"
+        ports:
+          - "7700:7700"
+      postgres: # the acorn-owned pgvector path for G4's filtered-ANN retrieval-semantics check (container, no secret)
+        image: supabase/postgres:15.8.1.135
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - "5432:5432"
+    env:
+      MEILI_URL: "http://localhost:7700"
+      MEILI_MASTER_KEY: masterKey
+      DATABASE_URL: "postgres://postgres:postgres@localhost:5432/postgres"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - name: Install + build
+        run: |
+          pnpm install --frozen-lockfile || pnpm install
+          pnpm build
+      - name: Index the fixture corpus (committed fixture vectors — NO embed API)
+        run: node dist/cli/index.js index ./fixtures/corpus --engine meili --hybrid
+      - name: THE acceptance search (typo + SKU + error-code in one query)
+        run: node dist/cli/index.js search "kuburnetes RTX-4090 0x80070005" --hybrid --facet category --top 10 --json
+      - name: Eval pyramid (red-blocking — G1 + typo/lexical-ID classes + per-query regression)
+        run: node eval/eval.mjs
+      - name: L3 trajectory judge (INPUT-only, non-blocking — DISPUTE D / noSelfGrading)
+        run: node eval/judge/trajectory-judge.mjs
