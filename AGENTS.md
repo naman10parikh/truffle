@@ -79,6 +79,35 @@ Returned document content is **untrusted** (no instruction-following on result t
 Wiring: `.mcp.json` lists the `truffle` server (`node dist/mcp/server.js`) + env-ref keys only (no live keys).
 Full agent map + the consumption stanza: `llms.txt`. Plugin bundle: `.claude-plugin/manifest.json`.
 
+## Consumption — how the energy hub (or a sibling employee) calls truffle
+
+truffle is a **consume-on-demand** infra employee. Per the fleet rule (Skills > MCPs; MCP overhead is per-session),
+the energy hub does **NOT** keep truffle's MCP server in its live `.mcp.json` — it consumes truffle one of three ways
+(matches `energy/audit/cp123/HUB-CONSUMPTION.md`):
+
+1. **Point a coding agent at this repo (default, zero token overhead).** Hand it this path; `AGENTS.md` + `llms.txt`
+   + `skills/` self-describe. The agent reads truffle's skills (`select-search-engine`, `build-hybrid-search`,
+   `tune-relevance`, `add-reranker`, `search-eval-loop`) and applies the stance.
+2. **Run the CLI.** `npx truffle search "<query>" --json` (or `truffle` once linked). `--json` on `engine select` /
+   `eval` / `doctor` / `facet plan` for machine consumption. The 5 deterministic verbs (`engine select`, `hybrid`,
+   `facet plan`, `rerank advise`, `embed advise`) + `brain search` need **no engine**; `index` / `search` / `eval`
+   need a reachable Meili (`truffle engine up --engine meili`).
+3. **Hot-add the MCP server for the duration of a search task, then remove it.** Add to the consuming repo's
+   `.mcp.json`:
+   ```json
+   { "truffle": { "command": "node", "args": ["~/truffle/dist/mcp/server.js"],
+     "env": { "MEILI_URL": "${MEILI_URL}", "MEILI_MASTER_KEY": "${MEILI_MASTER_KEY}" } } }
+   ```
+   then `tools/call truffle_search {"query":"kubernetes"}` → a `hits` array **+ a `relevance_note`** (truffle's own
+   trusted commentary on what was fused). Proven round-trip (Wave-B G2): `isError:false`, `hits[]` length 2,
+   `relevance_note` present, engine-agnostic. The 7 deterministic tools work with no engine; the 4 engine-touching
+   tools (`truffle_index`/`truffle_search`/`truffle_eval`/`truffle_doctor`) need a reachable Meili and otherwise
+   return an honest not-reachable note (never a fabricated `hits` array).
+
+Boundary on consumption: truffle returns **the right ordered hits + the relevance proof**. The vector STORAGE
+substrate (pgvector/Postgres box) is **acorn**; the **LLM generation** step that reads the top-8 chunks is
+downstream — the hub wires those separately.
+
 ## Brain
 
 truffle's expertise lives in `brain/` (6 Wave-R artifacts + MOC), BM25-searchable via `truffle brain search`.

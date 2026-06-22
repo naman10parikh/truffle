@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>truffle · the search employee</title>
+    <!-- Energy design system: Instrument Serif (display) + Poppins (body), warm-black + amber, NO AI-purple. -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Poppins:wght@300;400;500;600&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="/style.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="brand">
+        <span class="nose" aria-hidden="true">◗</span>
+        <span class="brand-name">truffle</span>
+        <span class="brand-tag">the search employee · typo-tolerant, faceted, relevance-ranked hybrid search you can prove</span>
+      </div>
+      <div class="boundary-chip" title="truffle owns retrieval/relevance; acorn owns the pgvector DB; the LLM answer step is downstream">
+        retrieval &amp; relevance only · DB = acorn · LLM-gen = downstream
+      </div>
+    </header>
+
+    <nav class="tabs" role="tablist">
+      <button class="tab active" data-view="brain" role="tab">Brain</button>
+      <button class="tab" data-view="runs" role="tab">Run log</button>
+      <button class="tab" data-view="evals" role="tab">Eval scores</button>
+      <button class="tab" data-view="ask" role="tab">Ask the employee</button>
+    </nav>
+
+    <main id="app">
+      <!-- ===== Brain browser ===== -->
+      <section class="view active" id="view-brain">
+        <div class="brain-layout">
+          <aside class="brain-nav">
+            <div class="search-row">
+              <input id="brain-search-input" type="search" placeholder="search the brain (BM25)…" autocomplete="off" />
+            </div>
+            <div id="brain-search-results" class="brain-search-results" hidden></div>
+            <ul id="brain-file-list" class="brain-file-list"></ul>
+          </aside>
+          <article id="brain-doc" class="brain-doc">
+            <p class="muted">Loading the brain…</p>
+          </article>
+        </div>
+      </section>
+
+      <!-- ===== Run log ===== -->
+      <section class="view" id="view-runs">
+        <div class="section-head">
+          <h2>Run log</h2>
+          <p class="muted">Every truffle run — the load-bearing field is the <em>relevance verdict</em> (Recall@10 / MRR), not cost. Tails <code>logs/runs.jsonl</code>.</p>
+        </div>
+        <div id="runs-table"></div>
+      </section>
+
+      <!-- ===== Eval scores ===== -->
+      <section class="view" id="view-evals">
+        <div class="section-head">
+          <h2>Eval scores</h2>
+          <p class="muted">The golden-task pyramid (§6). "search is never done" — the version-bump suite re-runs the typo + lexical-ID classes after any engine bump.</p>
+        </div>
+        <div class="badge-row" id="eval-badges"></div>
+        <div id="eval-grid"></div>
+        <div class="section-head" style="margin-top: 1.5rem">
+          <h3>Typo class (the silent-failure class)</h3>
+          <p class="muted">Single-char substitution, transposition, multi-word — re-run after every version bump.</p>
+        </div>
+        <div id="typo-grid"></div>
+      </section>
+
+      <!-- ===== Ask the employee ===== -->
+      <section class="view" id="view-ask">
+        <div class="section-head">
+          <h2>Ask the employee</h2>
+          <p class="muted">Talk to truffle against the sample fixture corpus. Brain &amp; engine-select need no engine; search needs <code>truffle engine up --engine meili</code>.</p>
+        </div>
+        <div class="ask-modes" role="tablist">
+          <button class="ask-mode active" data-mode="brain">Brain search</button>
+          <button class="ask-mode" data-mode="search">Search the corpus</button>
+          <button class="ask-mode" data-mode="engine">Engine select</button>
+        </div>
+        <form id="ask-form" class="ask-form">
+          <input id="ask-input" type="text" placeholder="e.g. filtered ANN under-return" autocomplete="off" />
+          <button type="submit" id="ask-submit">Ask</button>
+        </form>
+        <p class="ask-hint" id="ask-hint"></p>
+        <div id="ask-result" class="ask-result"></div>
+      </section>
+    </main>
+
+    <footer class="footer">truffle · CP123 search employee · Powered by Energy</footer>
+
+    <script src="/app.js"></script>
+  </body>
+</html>
