@@ -36,6 +36,7 @@
     "dev": "tsc --watch",
     "test": "vitest run",
     "test:watch": "vitest",
+    "eval": "node eval/eval.mjs",
     "prepublishOnly": "pnpm build && pnpm test"
   },
   "dependencies": {
