@@ -1,0 +1,50 @@
+{
+  "name": "truffle",
+  "version": "0.1.0",
+  "description": "truffle — the search employee: typo-tolerant, faceted, relevance-ranked hybrid (BM25+vector) search you can prove",
+  "type": "module",
+  "bin": {
+    "truffle": "./dist/cli/index.js"
+  },
+  "main": "./dist/cli/index.js",
+  "types": "./dist/cli/index.d.ts",
+  "files": [
+    "dist/",
+    "brain/",
+    "README.md",
+    "LICENSE"
+  ],
+  "license": "MIT",
+  "engines": {
+    "node": ">=18"
+  },
+  "keywords": [
+    "search",
+    "hybrid-search",
+    "bm25",
+    "vector-search",
+    "reranking",
+    "relevance",
+    "meilisearch",
+    "ai",
+    "claude",
+    "agent",
+    "dev-tools"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "prepublishOnly": "pnpm build && pnpm test"
+  },
+  "dependencies": {
+    "chalk": "^5.3.0",
+    "commander": "^12.1.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "typescript": "^5.7.2",
+    "vitest": "^2.1.8"
+  }
+}
