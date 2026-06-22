@@ -107,6 +107,15 @@ async function handle(req: JsonRpcRequest): Promise<void> {
 
 function main(): void {
   const rl = createInterface({ input: process.stdin, crlfDelay: Infinity });
+  // Track in-flight async handlers so a one-shot pipe (echo … | node server.js) does NOT exit on stdin EOF before an
+  // engine-touching tool/call (truffle_search/eval/…, which await the live engine) has written its response. Without
+  // this, `close` → process.exit(0) races the async handler and the response is silently dropped — synchronous tools
+  // (tools/list) appear to work, async ones return nothing. We exit only once stdin closed AND all handlers settled.
+  let pending = 0;
+  let stdinClosed = false;
+  const maybeExit = (): void => {
+    if (stdinClosed && pending === 0) process.exit(0);
+  };
   rl.on("line", (line) => {
     const trimmed = line.trim();
     if (trimmed.length === 0) return;
@@ -122,13 +131,22 @@ function main(): void {
       return;
     }
     // handle() is async (engine-touching tools import the E runtime); surface any unexpected rejection as an
-    // internal error rather than crashing the line loop.
-    void handle(req).catch((e) => {
-      const message = e instanceof Error ? e.message : String(e);
-      writeError(req.id ?? null, ERR.INTERNAL, `internal error: ${message}`);
-    });
+    // internal error rather than crashing the line loop. Count it as in-flight so EOF doesn't cut it off.
+    pending++;
+    void handle(req)
+      .catch((e) => {
+        const message = e instanceof Error ? e.message : String(e);
+        writeError(req.id ?? null, ERR.INTERNAL, `internal error: ${message}`);
+      })
+      .finally(() => {
+        pending--;
+        maybeExit();
+      });
   });
-  rl.on("close", () => process.exit(0));
+  rl.on("close", () => {
+    stdinClosed = true;
+    maybeExit();
+  });
 }
 
 main();
