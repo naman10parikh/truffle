@@ -4,13 +4,17 @@
 // to content/screenshots/wave-v/ for Wave-V evidence. Uses the playwright-cli path (the global `playwright`
 // install via NODE_PATH) — NOT the banned Playwright MCP [CLAUDE.md Tool Preferences].
 //
-// Usage:  node scripts/cockpit-smoke.mjs            (expects the cockpit already serving on $TRUFFLE_WEB_PORT|7787)
+// Usage:  node scripts/cockpit-smoke.mjs
+//   Self-contained: if nothing is already serving on $TRUFFLE_WEB_PORT|7787, it BOOTS the cockpit
+//   (scripts/serve.sh) itself and shuts it down on exit, so the verify line works cold (no pre-boot needed).
+//   If a server is already up on that port, it reuses it and leaves it running.
 // Exit 0 = all 4 views passed; non-zero = a view failed its assertion.
 
 import { mkdirSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createRequire } from "node:module";
+import { spawn } from "node:child_process";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = join(__dirname, "..");
@@ -39,6 +43,51 @@ if (!chromium) {
 }
 
 mkdirSync(SHOT_DIR, { recursive: true });
+
+// --- Self-boot the cockpit if it isn't already serving (makes the verify line self-contained) ---
+async function isUp() {
+  try {
+    const res = await fetch(`${BASE}/api/health`);
+    return res.ok;
+  } catch {
+    return false;
+  }
+}
+let serverProc = null;
+async function ensureCockpit() {
+  if (await isUp()) {
+    console.log(`cockpit already up on ${BASE} — reusing it`);
+    return;
+  }
+  console.log(`cockpit not up — booting scripts/serve.sh on port ${PORT}…`);
+  serverProc = spawn("bash", [join(REPO_ROOT, "scripts", "serve.sh")], {
+    cwd: REPO_ROOT,
+    env: { ...process.env, TRUFFLE_WEB_PORT: String(PORT) },
+    stdio: "ignore",
+    detached: false,
+  });
+  // Wait up to ~15s for readiness.
+  const deadline = Date.now() + 15000;
+  while (Date.now() < deadline) {
+    if (await isUp()) {
+      console.log("cockpit booted.");
+      return;
+    }
+    await new Promise((r) => setTimeout(r, 400));
+  }
+  throw new Error(`cockpit did not become ready on ${BASE} within 15s`);
+}
+function teardownCockpit() {
+  if (serverProc && !serverProc.killed) {
+    try {
+      serverProc.kill("SIGTERM");
+    } catch {
+      /* already gone */
+    }
+  }
+}
+
+await ensureCockpit();
 
 const fails = [];
 function assert(cond, msg) {
@@ -95,6 +144,7 @@ try {
   fails.push(err.message);
 } finally {
   await browser.close();
+  teardownCockpit();
 }
 
 if (fails.length) {
