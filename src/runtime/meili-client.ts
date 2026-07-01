@@ -164,14 +164,20 @@ export class MeiliClient {
    * Delete ALL documents in an index and WAIT for the task (P1 async-write contract). truffle's `index <path>` uses
    * REPLACE semantics — the index reflects exactly the corpus you just indexed — so each index call clears the prior
    * corpus first. Without this, indexing corpus B into the fixed FIXTURE_INDEX leaves corpus A's docs mixed in (and a
-   * leftover BM25 doc with no vector breaks a subsequent --hybrid run when the embedder re-embeds existing docs). The
-   * index is left in place if it doesn't exist yet (404 → benign no-op; configureIndex creates it next).
+   * leftover BM25 doc with no vector breaks a subsequent --hybrid run when the embedder re-embeds existing docs).
+   *
+   * COLD-START (the fixed CI bug): on a FRESH engine the index doesn't exist yet. Meili v1.28 does NOT answer this
+   * with a sync 404 — it returns 202 and ENQUEUES a documentDeletion task that then FAILS with "Index `…` not found".
+   * That is benign here (there is nothing to clear; configureIndex creates the index next), so we poll the task (P1)
+   * and TOLERATE exactly the not-found failure — mirroring the "already exists" tolerance in configureIndex. The
+   * sync-404 branch is kept as a defensive no-op in case a future engine version answers synchronously instead.
    */
   async deleteAllDocuments(index: string): Promise<void> {
     const res = await fetch(`${this.cfg.url}/indexes/${index}/documents`, { method: "DELETE", headers: this.headers() });
-    if (res.status === 404) return; // index not created yet — nothing to clear
+    if (res.status === 404) return; // index not created yet — nothing to clear (sync form; not what v1.28 does)
     if (!res.ok) throw new Error(`DELETE /documents → HTTP ${res.status}: ${await res.text()}`);
-    await this.waitForTask(this.taskUidOf(await res.json()));
+    // Poll to succeeded, but treat "index not found" as benign (fresh engine — nothing to delete yet).
+    await this.waitForTask(this.taskUidOf(await res.json()), 30_000, (msg) => /not found/i.test(msg));
   }
 
   /**

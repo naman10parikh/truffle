@@ -80,7 +80,8 @@ async function indexCore(corpusPath: string, opts: IndexOptions): Promise<IndexR
   // REPLACE semantics: clear the prior corpus first so the index reflects exactly THIS corpus (truffle's index name
   // is fixed — without this, indexing corpus B leaves corpus A's docs mixed in, and a leftover BM25 doc with no
   // vector breaks a subsequent --hybrid run when configureIndex re-embeds existing docs). Delete BEFORE configure so
-  // the embedder change never re-embeds stale docs. No-op when the index doesn't exist yet (404).
+  // the embedder change never re-embeds stale docs. Benign no-op on a FRESH engine where the index doesn't exist yet
+  // (Meili v1.28 enqueues a documentDeletion task that fails "index not found"; deleteAllDocuments tolerates that).
   await client.deleteAllDocuments(FIXTURE_INDEX);
 
   // Configure attributes (P2) + the hybrid embedder (only when --hybrid; reset when BM25-only). Polls each settings
