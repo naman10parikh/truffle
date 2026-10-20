@@ -10,6 +10,7 @@
 
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import { join, basename } from "node:path";
+import { fileURLToPath } from "node:url";
 
 const K1 = 1.5;
 const B = 0.75;
@@ -140,6 +141,7 @@ export function brainSearch(query: string, brainDir: string, limit = 5): BrainHi
 
 /** Resolve the canonical brain dir relative to the repo root (the package's own brain/). */
 export function defaultBrainDir(): string {
-  // src/core/brain-index.ts → repo root is two dirs up from dist/core at runtime; resolve from cwd's brain/.
-  return join(process.cwd(), "brain");
+  // The package's own brain/ sits two dirs up from this module (dist/core at runtime, src/core under vitest), so
+  // the search works from any cwd, including an npx or plugin install.
+  return fileURLToPath(new URL("../../brain/", import.meta.url));
 }

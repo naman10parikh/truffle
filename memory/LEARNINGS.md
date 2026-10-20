@@ -30,3 +30,11 @@ Every error → root cause → rule. Auto-compressed when >500 lines (memory-com
   code expected a synchronous 404, and the warm local index masked it.
 - **Rule:** tolerate "index not found" on the delete step, and prove the acceptance path on a fresh engine, not
   only on a warm local one.
+
+## 2026-10-19 · Resolve package files from the module, not the cwd
+
+- **What broke:** `truffle brain search` and the MCP `truffle_brain_search` tool found nothing when run through
+  `npx -y -p github:naman10parikh/truffle`, though they worked inside the repo.
+- **Root cause:** `defaultBrainDir()` joined `process.cwd()` with `brain`, so it only worked from the repo root.
+- **Rule:** find the package's own files from `import.meta.url`, and prove every bin and MCP tool from an empty
+  folder through npx.
