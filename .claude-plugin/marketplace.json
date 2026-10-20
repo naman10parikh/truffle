@@ -1,0 +1,17 @@
+{
+  "name": "truffle",
+  "owner": {
+    "name": "Naman Parikh",
+    "url": "https://github.com/naman10parikh"
+  },
+  "metadata": {
+    "description": "Search you can measure: hybrid ranking with a relevance loop."
+  },
+  "plugins": [
+    {
+      "name": "truffle",
+      "source": "./",
+      "description": "Search you can measure: hybrid ranking with a relevance loop."
+    }
+  ]
+}

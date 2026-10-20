@@ -4,7 +4,8 @@
   "description": "truffle — the search employee: typo-tolerant, faceted, relevance-ranked hybrid (BM25+vector) search you can prove",
   "type": "module",
   "bin": {
-    "truffle": "./dist/cli/index.js"
+    "truffle": "./dist/cli/index.js",
+    "truffle-mcp": "./dist/mcp/server.js"
   },
   "main": "./dist/cli/index.js",
   "types": "./dist/cli/index.d.ts",
@@ -33,6 +34,7 @@
   ],
   "scripts": {
     "build": "tsc && chmod +x dist/cli/index.js",
+    "prepare": "tsc",
     "dev": "tsc --watch",
     "test": "vitest run",
     "test:watch": "vitest",

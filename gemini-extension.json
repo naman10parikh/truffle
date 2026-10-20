@@ -1,0 +1,17 @@
+{
+  "name": "truffle",
+  "version": "0.1.0",
+  "description": "Search you can measure: hybrid ranking with a relevance loop.",
+  "contextFileName": "GEMINI.md",
+  "mcpServers": {
+    "truffle": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "-p",
+        "github:naman10parikh/truffle",
+        "truffle-mcp"
+      ]
+    }
+  }
+}

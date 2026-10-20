@@ -1,0 +1,13 @@
+{
+  "description": "truffle's version-bump guard: when an edit changes a search-engine version pin, it warns to re-run the version-bump regression suite.",
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write|MultiEdit",
+        "hooks": [
+          { "type": "command", "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/version-bump-guard.js\"" }
+        ]
+      }
+    ]
+  }
+}
