@@ -1,0 +1,12 @@
+cff-version: 1.2.0
+message: If you use this software, please cite it as below.
+title: "Truffle: Search you can measure: hybrid ranking with a relevance loop."
+type: software
+authors:
+  - family-names: Parikh
+    given-names: Naman
+repository-code: "https://github.com/naman10parikh/truffle"
+license: MIT
+version: "0.1.0"
+abstract: "Search you can measure: hybrid ranking with a relevance loop."
+keywords: ["agent-native", "search", "hybrid-search", "meilisearch"]
