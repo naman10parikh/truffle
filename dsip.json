@@ -20,7 +20,7 @@
     "gate": "acceptance-test-green && no-regression",
     "noSelfGrading": true
   },
-  "snapback": { "granularity": ["component", "repo"], "vcs": "git" },
+  "snapback": { "granularity": ["skill", "employee"], "vcs": "git" },
   "externalIntelligence": {
     "enabled": true,
     "source": "search ecosystem watch — Meilisearch / Typesense / pgvector / OpenSearch changelogs + tagged issues per brain/TOOL-MATRIX.md (gh api, NOT WebFetch)"
