@@ -39,8 +39,8 @@ The other personas in that folder are inherited from the fleet.
 ## Model routing (CP123 — D12: ALL Opus)
 
 `scripts/budget-manager.sh status` works in-repo (the budget system is DISABLED as a constraint — always
-Opus 4.8 1M, max effort, per `.claude/rules/model-enforcement.md` top banner; ignore all 75/90/95 warnings).
-**Any sub-agent truffle spawns gets an EXPLICIT model arg — `model: "opus"` (`claude-opus-4-8[1m]`) — never a
+the latest flagship Opus, 1M, max effort, per `.claude/rules/model-enforcement.md` top banner; ignore all 75/90/95 warnings).
+**Any sub-agent truffle spawns gets an EXPLICIT model arg — `model: "opus"`, an alias that upgrades itself, never a model ID — never a
 bare default** (the omit-model death mode `[D12]`). This applies to the dispatch loop (D1) and the persona
 briefs `relevance-auditor` / `engine-selector` (C2).
 
