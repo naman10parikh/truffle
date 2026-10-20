@@ -68,8 +68,8 @@ async function runStep(step: Step): Promise<{ status: StepRecord["status"]; deta
   const { path, owner } = modByStep[step];
   try {
     await import(path);
-    // The module exists (E landed) — a real run is wired here per step; until E lands this branch is unreached.
-    return { status: "ok", detail: `${step} ran against the live runtime (${owner}).` };
+    // The module exists: the route confirms each step's runtime loads, in order. It does not run the step.
+    return { status: "ok", detail: `${step} runtime loads (${owner}); route run checks the order and does not run the step.` };
   } catch (err) {
     const code = (err as { code?: string }).code;
     const msg = err instanceof Error ? err.message : String(err);

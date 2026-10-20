@@ -314,7 +314,7 @@ const server = createServer(async (req, res) => {
   }
 });
 
-server.listen(PORT, () => {
-  console.log(`truffle cockpit → http://localhost:${PORT}  (Ctrl-C to stop)`);
+server.listen(PORT, "127.0.0.1", () => {
+  console.log(`truffle cockpit → http://127.0.0.1:${PORT}  (Ctrl-C to stop)`);
   console.log(`  brain index: ${brainSearchFn ? "loaded (BM25 over brain/)" : "NOT built — run `pnpm build`"}`);
 });
