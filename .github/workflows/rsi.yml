@@ -18,6 +18,9 @@ permissions:
 jobs:
   rsi:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
     services:
       meilisearch: # a real, reproducible engine for the version-bump suite (identical to a hosted Meili, zero secrets)
         image: getmeili/meilisearch:v1.28
@@ -29,7 +32,7 @@ jobs:
     env:
       MEILI_URL: "http://localhost:7700"
       MEILI_MASTER_KEY: masterKey
-      # gh api needs a token for the tool-matrix changelog re-check (read-only, matches permissions above).
+      # gh api needs a token for the tool-matrix changelog re-check (those calls only read).
       GH_TOKEN: ${{ github.token }}
     steps:
       - uses: actions/checkout@v4
@@ -59,7 +62,8 @@ jobs:
             exit 0
           fi
           echo "engine present — running the deterministic RSI half (eval pyramid + version-bump suite + gh-api tool-matrix re-check)"
-          node workflows/rsi.workflow.js
+          set -o pipefail
+          node workflows/rsi.workflow.js | tee rsi-output.json
       - name: Version-bump regression suite (the deterministic $0 check, O20/S8)
         run: |
           set -e
@@ -68,4 +72,29 @@ jobs:
             node dist/cli/index.js eval --suite version-bump || { echo "::warning::version-bump regression suite flagged a regression — re-check before trusting the current engine pin"; }
           else
             echo "eval runtime (E1) not built yet — version-bump suite arms with cluster E; exiting green."
+          fi
+      - name: Write the proposal to a file (the loop prints it as JSON; "none" means nothing to propose)
+        if: always()
+        run: |
+          [ -s rsi-output.json ] || exit 0
+          jq -r 'if .proposed_diff.action == "none" then empty else .proposed_diff | .summary + "\n\n" + (.details | map("- " + .) | join("\n")) end' rsi-output.json > rsi-proposal.md
+          cat rsi-proposal.md
+      - name: Open or update the proposal issue for a person to review
+        if: always() && hashFiles('rsi-proposal.md') != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          [ -s rsi-proposal.md ] || { echo "The loop proposed nothing this run, so no issue."; exit 0; }
+          gh label create proposal --color 2f5d8a --description "A change the self-improvement loop proposes for a person to review" --force
+          {
+            echo "Written by the scheduled self-improvement loop on $(date -u '+%Y-%m-%d %H:%M UTC'). It proposes; a person decides. The loop never merges."
+            echo
+            cat rsi-proposal.md
+          } > "$RUNNER_TEMP/proposal-issue.md"
+          number=$(gh issue list --label proposal --state open --limit 1 --json number --jq '.[0].number // empty')
+          if [ -n "$number" ]; then
+            gh issue edit "$number" --body-file "$RUNNER_TEMP/proposal-issue.md"
+          else
+            gh issue create --title "Truffle: proposal from the self-improvement loop" --label proposal --body-file "$RUNNER_TEMP/proposal-issue.md"
           fi
