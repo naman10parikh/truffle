@@ -20,7 +20,7 @@ Truffle is an agent employee, a packaged specialist agent with its own skills, m
 
 _Truffle is part of an agent-native play for agent-native systems that can eventually be recursively self-improving and evolving, operated by agent employees._
 
-<p align="center"><img alt="Truffle: on the command line" src="assets/terminal.svg" width="880"></p>
+<p align="center"><img alt="Truffle: a real task, run offline" src="assets/demo.svg" width="880"></p>
 <!-- fleet:header:end -->
 
 Truffle gives an app search that returns the right ordered results and proves it: typo-tolerant, faceted and relevance-ranked through hybrid search (BM25, vectors and rank fusion), checked by a golden-query eval that catches silent regressions. It is for coding agents, and the developers who drive them, whenever a product needs a search box, retrieval for RAG or a relevance fix. It picks the engine for the corpus (Meilisearch by default), and it is a recursively self-improving, agent-native harness built on the Energy harness formula.
